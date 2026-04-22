@@ -653,7 +653,7 @@ function renderReleasePage(release, sections, releaseLinks) {
       <section class="hero">
         <div class="eyebrow">Release package</div>
         <h1>${escapeHtml(release.metadata.display_name)}</h1>
-        <p>This release is assembled from canonical topics in <code>network-docs-content</code> and packaging files in <code>network-docs-releases/releases/${escapeHtml(release.releaseName)}</code>.</p>
+        <p>Use this guide to configure, secure, upgrade, and maintain routers for ${escapeHtml(release.metadata.display_name)}. The topics in this release focus on common operational tasks for day-to-day network administration.</p>
         <div class="pill-row">
           <span class="pill">Path ${escapeHtml(release.metadata.publish_path)}</span>
           <span class="pill">${escapeHtml(release.metadata.status)}</span>
