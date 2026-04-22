@@ -461,6 +461,36 @@ function loadTopics() {
   return topics;
 }
 
+function compareVersions(left, right) {
+  const leftParts = left.split(".").map(Number);
+  const rightParts = right.split(".").map(Number);
+  for (let index = 0; index < Math.max(leftParts.length, rightParts.length); index += 1) {
+    const leftValue = leftParts[index] || 0;
+    const rightValue = rightParts[index] || 0;
+    if (leftValue < rightValue) return -1;
+    if (leftValue > rightValue) return 1;
+  }
+  return 0;
+}
+
+function releaseMatchesRange(release, range) {
+  if (range.endsWith("+")) return compareVersions(release, range.slice(0, -1)) >= 0;
+  if (range.includes("-")) {
+    const [start, end] = range.split("-");
+    return compareVersions(release, start) >= 0 && compareVersions(release, end) <= 0;
+  }
+  return release === range;
+}
+
+function renderVersionBlocks(markdown, release) {
+  return markdown
+    .replace(/:::version range="([^"]+)"\n([\s\S]*?)\n:::/g, (_match, range, content) => {
+      return releaseMatchesRange(release, range) ? content.trim() : "";
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function releaseMatchesTopic(release, topic) {
   return (topic.lifecycle.applies_to || []).includes(release);
 }
@@ -579,7 +609,7 @@ function renderTopicPage(topic, release, releaseLinks, nav) {
     <main>
       <div class="topic-shell">
         <div class="breadcrumbs"><a href="../index.html">${escapeHtml(release.metadata.display_name)}</a> · Topic ID <code>${escapeHtml(topic.topicId)}</code></div>
-        ${markdownToHtml(topic.body)}
+        ${markdownToHtml(renderVersionBlocks(topic.body, release.releaseName))}
         ${topicNav}
       </div>
     </main>`,
