@@ -5,3 +5,6 @@ sections:
   - id: proxy
     title: Proxy
     topics: ["NET-PROXY-TASK-001"]
+  - id: upgrade
+    title: Upgrade
+    topics: ["NET-UPGRADE-TASK-001"]
