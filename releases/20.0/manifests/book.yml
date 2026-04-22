@@ -4,3 +4,13 @@ topics:
   - NET-SSH-TASK-001
   - NET-PROXY-TASK-001
   - NET-UPGRADE-TASK-001
+sections:
+  - id: access
+    title: Access
+    topics: ["NET-SSH-TASK-001"]
+  - id: proxy
+    title: Proxy
+    topics: ["NET-PROXY-TASK-001"]
+  - id: upgrade
+    title: Upgrade
+    topics: ["NET-UPGRADE-TASK-001"]

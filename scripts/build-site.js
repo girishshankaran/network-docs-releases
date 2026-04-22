@@ -500,7 +500,6 @@ function loadReleaseConfig(releaseName) {
   return {
     releaseName,
     manifest: parseYaml(fs.readFileSync(path.join(releaseRoot, "manifests", "book.yml"), "utf8")),
-    toc: parseYaml(fs.readFileSync(path.join(releaseRoot, "assets", "toc.yml"), "utf8")),
     metadata: parseYaml(fs.readFileSync(path.join(releaseRoot, "assets", "release-metadata.yml"), "utf8")),
   };
 }
@@ -629,7 +628,7 @@ function buildRelease(topics, release, releases) {
     included.push(topic);
   }
 
-  const sections = (release.toc.sections || [])
+  const sections = (release.manifest.sections || [])
     .map((section) => {
       const sectionTopics = (section.topics || [])
         .map((topicId) => included.find((topic) => topic.topicId === topicId))

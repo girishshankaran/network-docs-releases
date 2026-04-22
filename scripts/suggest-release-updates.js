@@ -139,7 +139,6 @@ function loadReleaseConfig(releaseName) {
   return {
     releaseName,
     manifest: parseYaml(fs.readFileSync(path.join(releaseRoot, "manifests", "book.yml"), "utf8")),
-    toc: parseYaml(fs.readFileSync(path.join(releaseRoot, "assets", "toc.yml"), "utf8")),
   };
 }
 
@@ -160,7 +159,7 @@ function main() {
   for (const releaseName of releases) {
     const release = loadReleaseConfig(releaseName);
     const manifestTopics = new Set(release.manifest.topics || []);
-    const tocTopics = new Set((release.toc.sections || []).flatMap((section) => section.topics || []));
+    const tocTopics = new Set((release.manifest.sections || []).flatMap((section) => section.topics || []));
 
     const missingFromRelease = topics
       .filter((topic) => topic.appliesTo.includes(releaseName))
@@ -180,21 +179,21 @@ function main() {
     }
 
     if (missingFromRelease.length > 0) {
-      console.log("Suggested additions to manifest and TOC:");
+      console.log("Suggested additions to release manifest:");
       for (const topic of missingFromRelease) {
         const section = suggestSection(topic);
         console.log(`- ${topic.topicId} (${topic.title})`);
-        console.log(`  add to manifests/book.yml`);
-        console.log(`  suggested TOC section: ${section.title} [${section.id}]`);
+        console.log(`  add to manifests/book.yml topics`);
+        console.log(`  suggested section: ${section.title} [${section.id}]`);
       }
     }
 
     if (missingFromToc.length > 0) {
-      console.log("Manifest entries missing from TOC:");
+      console.log("Manifest entries missing from sections:");
       for (const topic of missingFromToc) {
         const section = suggestSection(topic);
         console.log(`- ${topic.topicId} (${topic.title})`);
-        console.log(`  suggested TOC section: ${section.title} [${section.id}]`);
+        console.log(`  suggested section: ${section.title} [${section.id}]`);
       }
     }
   }
