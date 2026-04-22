@@ -6,9 +6,28 @@ const releasesRoot = path.resolve(process.argv[3] || "network-docs-releases");
 const topicsDir = path.join(contentRoot, "topics");
 const releasesDir = path.join(releasesRoot, "releases");
 const siteDir = path.join(releasesRoot, "site");
+const buildTimestamp = new Date().toISOString();
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function removeDir(dirPath) {
+  fs.rmSync(dirPath, { recursive: true, force: true });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function inlineMarkdownToHtml(value) {
+  return escapeHtml(value)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
 }
 
 function parseScalar(raw) {
@@ -28,24 +47,30 @@ function parseScalar(raw) {
 function parseYamlBlock(lines, startIndex, currentIndent) {
   const result = {};
   let index = startIndex;
+
   while (index < lines.length) {
     const line = lines[index];
     if (!line.trim()) {
       index += 1;
       continue;
     }
+
     const indent = line.match(/^ */)[0].length;
     if (indent < currentIndent) break;
     if (indent > currentIndent) throw new Error(`Unexpected indentation near: ${line}`);
+
     const trimmed = line.trim();
     const keyValue = trimmed.match(/^([^:]+):(.*)$/);
     if (!keyValue) throw new Error(`Unsupported YAML line: ${line}`);
+
     const key = keyValue[1].trim();
     const rest = keyValue[2].trim();
+
     if (!rest) {
       const nextLine = lines[index + 1] || "";
       const nextTrimmed = nextLine.trim();
       const nextIndent = nextLine.match(/^ */)[0].length;
+
       if (nextTrimmed.startsWith("- ")) {
         const listResult = [];
         index += 1;
@@ -58,25 +83,53 @@ function parseYamlBlock(lines, startIndex, currentIndent) {
             continue;
           }
           if (listIndent < currentIndent + 2 || !listTrimmed.startsWith("- ")) break;
-          listResult.push(parseScalar(listTrimmed.slice(2).trim()));
+
+          const itemValue = listTrimmed.slice(2).trim();
+          if (itemValue.includes(":")) {
+            const item = {};
+            const firstMatch = itemValue.match(/^([^:]+):(.*)$/);
+            item[firstMatch[1].trim()] = parseScalar(firstMatch[2].trim());
+            index += 1;
+            while (index < lines.length) {
+              const nestedLine = lines[index];
+              const nestedIndent = nestedLine.match(/^ */)[0].length;
+              const nestedTrimmed = nestedLine.trim();
+              if (!nestedTrimmed) {
+                index += 1;
+                continue;
+              }
+              if (nestedIndent <= listIndent) break;
+              const nestedMatch = nestedTrimmed.match(/^([^:]+):(.*)$/);
+              item[nestedMatch[1].trim()] = parseScalar(nestedMatch[2].trim());
+              index += 1;
+            }
+            listResult.push(item);
+            continue;
+          }
+
+          listResult.push(parseScalar(itemValue));
           index += 1;
         }
         result[key] = listResult;
         continue;
       }
+
       if (nextIndent > currentIndent) {
         const nested = parseYamlBlock(lines, index + 1, currentIndent + 2);
         result[key] = nested.value;
         index = nested.nextIndex;
         continue;
       }
+
       result[key] = {};
       index += 1;
       continue;
     }
+
     result[key] = parseScalar(rest);
     index += 1;
   }
+
   return { value: result, nextIndex: index };
 }
 
@@ -88,6 +141,307 @@ function parseFrontmatter(source) {
   const match = source.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) throw new Error("Missing frontmatter");
   return { frontmatter: parseYaml(match[1]), body: match[2].trim() };
+}
+
+function siteChrome(title, body, releaseLinks = []) {
+  const switcher = releaseLinks
+    .map((item) => `<a href="${item.href}"${item.active ? ' class="active"' : ""}>${escapeHtml(item.label)}</a>`)
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #fffdf8;
+      --canvas: #f4efe4;
+      --ink: #1c2431;
+      --muted: #5c677a;
+      --line: #ddd2bd;
+      --accent: #8a4b14;
+      --accent-soft: #f2ddc5;
+      --nav: #1e2f3f;
+      --card: rgba(255, 251, 243, 0.84);
+      --shadow: 0 18px 40px rgba(44, 54, 76, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.7), transparent 32%),
+        linear-gradient(180deg, #f8f2e8 0%, var(--canvas) 100%);
+    }
+    header {
+      background: linear-gradient(135deg, #213446 0%, var(--nav) 52%, #7d4417 160%);
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+    }
+    .topbar {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .switcher {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .switcher a {
+      color: #f7ead8;
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+    }
+    .switcher a.active {
+      background: rgba(255,255,255,0.16);
+      color: white;
+    }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 20px 72px;
+    }
+    .hero, .panel, .topic-shell {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 26px;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(138,75,20,0.14), transparent 65%);
+      pointer-events: none;
+    }
+    .eyebrow, .meta, .breadcrumbs, footer {
+      color: var(--muted);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+      margin-bottom: 8px;
+    }
+    h1, h2, h3 {
+      margin: 0 0 12px;
+      line-height: 1.08;
+      font-weight: 700;
+    }
+    h1 { font-size: clamp(2.25rem, 4vw, 4rem); }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.16rem; }
+    p {
+      margin: 0 0 14px;
+      line-height: 1.72;
+      font-size: 1.04rem;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: var(--accent-soft);
+      color: #68370d;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 1.75fr 1fr;
+    }
+    .release-list {
+      display: grid;
+      gap: 16px;
+    }
+    .release-card, .section-card, .panel, .topic-shell {
+      padding: 24px;
+    }
+    .release-card, .section-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+    .release-card a, .section-card a, .breadcrumbs a, .topic-nav a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .release-card p:last-child, .section-card p:last-child, .panel p:last-child {
+      margin-bottom: 0;
+    }
+    ul, ol {
+      margin: 0 0 16px;
+      padding-left: 24px;
+      line-height: 1.7;
+    }
+    li { margin-bottom: 8px; }
+    .section-card ul { margin-top: 14px; }
+    .topic-shell {
+      padding: 28px 30px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    .topic-shell h1 { font-size: clamp(2rem, 3vw, 3.2rem); }
+    .topic-shell h2 { margin-top: 28px; }
+    .topic-shell h3 { margin-top: 22px; }
+    .topic-nav {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .topic-nav a {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    code {
+      background: #efe6d7;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 0.95em;
+    }
+    footer {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px 26px;
+      font-size: 0.9rem;
+    }
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+      .hero, .release-card, .section-card, .panel, .topic-shell { padding: 22px; }
+      .topic-nav { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">Network Docs</div>
+      <nav class="switcher">${switcher}</nav>
+    </div>
+  </header>
+  ${body}
+  <footer>Generated from <code>${escapeHtml(path.basename(contentRoot))}</code> and <code>${escapeHtml(path.basename(releasesRoot))}</code> at <code>${escapeHtml(buildTimestamp)}</code>.</footer>
+</body>
+</html>`;
+}
+
+function markdownToHtml(markdown) {
+  const lines = markdown.split("\n");
+  const html = [];
+  let paragraph = [];
+  let listType = null;
+
+  function flushParagraph() {
+    if (paragraph.length === 0) return;
+    html.push(`<p>${inlineMarkdownToHtml(paragraph.join(" "))}</p>`);
+    paragraph = [];
+  }
+
+  function closeList() {
+    if (!listType) return;
+    html.push(listType === "ol" ? "</ol>" : "</ul>");
+    listType = null;
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushParagraph();
+      closeList();
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      closeList();
+      const level = heading[1].length;
+      html.push(`<h${level}>${inlineMarkdownToHtml(heading[2])}</h${level}>`);
+      continue;
+    }
+
+    const ordered = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (ordered) {
+      flushParagraph();
+      if (listType !== "ol") {
+        closeList();
+        html.push("<ol>");
+        listType = "ol";
+      }
+      html.push(`<li>${inlineMarkdownToHtml(ordered[1])}</li>`);
+      continue;
+    }
+
+    const unordered = trimmed.match(/^-\s+(.+)$/);
+    if (unordered) {
+      flushParagraph();
+      if (listType !== "ul") {
+        closeList();
+        html.push("<ul>");
+        listType = "ul";
+      }
+      html.push(`<li>${inlineMarkdownToHtml(unordered[1])}</li>`);
+      continue;
+    }
+
+    closeList();
+    paragraph.push(trimmed);
+  }
+
+  flushParagraph();
+  closeList();
+  return html.join("\n");
 }
 
 function loadTopics() {
@@ -111,41 +465,182 @@ function releaseMatchesTopic(release, topic) {
   return (topic.lifecycle.applies_to || []).includes(release);
 }
 
-function buildRelease(topics, releaseName) {
+function loadReleaseConfig(releaseName) {
   const releaseRoot = path.join(releasesDir, releaseName);
-  const manifest = parseYaml(fs.readFileSync(path.join(releaseRoot, "manifests", "book.yml"), "utf8"));
-  const metadata = parseYaml(fs.readFileSync(path.join(releaseRoot, "assets", "release-metadata.yml"), "utf8"));
-  const outputDir = path.join(siteDir, releaseName);
-  ensureDir(outputDir);
+  return {
+    releaseName,
+    manifest: parseYaml(fs.readFileSync(path.join(releaseRoot, "manifests", "book.yml"), "utf8")),
+    toc: parseYaml(fs.readFileSync(path.join(releaseRoot, "assets", "toc.yml"), "utf8")),
+    metadata: parseYaml(fs.readFileSync(path.join(releaseRoot, "assets", "release-metadata.yml"), "utf8")),
+  };
+}
 
-  const included = [];
-  for (const topicId of manifest.topics || []) {
-    const topic = topics.get(topicId);
-    if (!topic) continue;
-    if (!releaseMatchesTopic(releaseName, topic)) continue;
-    included.push(topic);
-    fs.writeFileSync(
-      path.join(outputDir, `${topic.slug}.html`),
-      `<!doctype html><html><body><h1>${topic.title}</h1><pre>${topic.body}</pre></body></html>`
-    );
-  }
+function buildReleaseNav(releases, activeRelease) {
+  return releases.map((release) => ({
+    label: release.metadata.release,
+    href: `../${release.releaseName}/index.html`,
+    active: release.releaseName === activeRelease,
+  }));
+}
 
-  const links = included.map((topic) => `<li><a href="./${topic.slug}.html">${topic.title}</a></li>`).join("");
-  fs.writeFileSync(
-    path.join(outputDir, "index.html"),
-    `<!doctype html><html><body><h1>${metadata.display_name}</h1><ul>${links}</ul></body></html>`
+function renderHomePage(releases) {
+  const cards = releases.map((release) => {
+    const latest = release.metadata.latest ? '<span class="pill">Latest release</span>' : "";
+    return `
+      <article class="release-card">
+        <div class="eyebrow">Release package</div>
+        <h2><a href="./${release.releaseName}/index.html">${escapeHtml(release.metadata.display_name)}</a></h2>
+        <p>Publish path: <code>${escapeHtml(release.metadata.publish_path)}</code></p>
+        <p>Status: <strong>${escapeHtml(release.metadata.status)}</strong></p>
+        <div class="pill-row">${latest}</div>
+      </article>
+    `;
+  }).join("");
+
+  return siteChrome(
+    "Network Docs Releases",
+    `
+    <main>
+      <section class="hero">
+        <div class="eyebrow">Production publishing model</div>
+        <h1>Release packages built from canonical content</h1>
+        <p>This site demonstrates the production Option 2 model: canonical topics live in a content repo, while release manifests and navigation live in a separate releases repo.</p>
+        <div class="pill-row">
+          <span class="pill">${releases.length} release packages</span>
+          <span class="pill">Folder-based release management</span>
+        </div>
+      </section>
+      <section class="release-list">
+        ${cards}
+      </section>
+    </main>`,
+    releases.map((release) => ({
+      label: release.metadata.release,
+      href: `./${release.releaseName}/index.html`,
+      active: false,
+    }))
   );
 }
 
-function main() {
-  ensureDir(siteDir);
-  const topics = loadTopics();
-  const releases = fs.readdirSync(releasesDir).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  for (const releaseName of releases) {
-    buildRelease(topics, releaseName);
+function renderReleasePage(release, sections, releaseLinks) {
+  const sectionCards = sections.map((section) => `
+    <article class="section-card">
+      <div class="eyebrow">Section</div>
+      <h2>${escapeHtml(section.title)}</h2>
+      <ul>
+        ${section.topics.map((topic) => `<li><a href="./${topic.slug}.html">${escapeHtml(topic.title)}</a></li>`).join("")}
+      </ul>
+    </article>
+  `).join("");
+
+  return siteChrome(
+    release.metadata.display_name,
+    `
+    <main>
+      <section class="hero">
+        <div class="eyebrow">Release package</div>
+        <h1>${escapeHtml(release.metadata.display_name)}</h1>
+        <p>This release is assembled from canonical topics in <code>network-docs-content</code> and packaging files in <code>network-docs-releases/releases/${escapeHtml(release.releaseName)}</code>.</p>
+        <div class="pill-row">
+          <span class="pill">Path ${escapeHtml(release.metadata.publish_path)}</span>
+          <span class="pill">${escapeHtml(release.metadata.status)}</span>
+          ${release.metadata.latest ? '<span class="pill">Latest</span>' : ""}
+        </div>
+      </section>
+      <section class="grid">
+        <div class="release-list">
+          ${sectionCards}
+        </div>
+        <aside class="panel">
+          <div class="eyebrow">Release facts</div>
+          <h2>Build summary</h2>
+          <p>Topics are filtered by canonical lifecycle metadata before being placed into the release navigation.</p>
+          <p><strong>Release:</strong> ${escapeHtml(release.metadata.release)}</p>
+          <p><strong>Publish path:</strong> <code>${escapeHtml(release.metadata.publish_path)}</code></p>
+          <p><strong>Sections:</strong> ${sections.length}</p>
+        </aside>
+      </section>
+    </main>`,
+    releaseLinks
+  );
+}
+
+function renderTopicPage(topic, release, releaseLinks, nav) {
+  const topicNav = (nav.previous || nav.next)
+    ? `<nav class="topic-nav">
+        <div>${nav.previous ? `<a href="./${nav.previous.slug}.html"><span>Previous</span><strong>${escapeHtml(nav.previous.title)}</strong></a>` : ""}</div>
+        <div>${nav.next ? `<a href="./${nav.next.slug}.html"><span>Next</span><strong>${escapeHtml(nav.next.title)}</strong></a>` : ""}</div>
+      </nav>`
+    : "";
+
+  return siteChrome(
+    `${topic.title} · ${release.metadata.display_name}`,
+    `
+    <main>
+      <div class="topic-shell">
+        <div class="breadcrumbs"><a href="../index.html">${escapeHtml(release.metadata.display_name)}</a> · Topic ID <code>${escapeHtml(topic.topicId)}</code></div>
+        ${markdownToHtml(topic.body)}
+        ${topicNav}
+      </div>
+    </main>`,
+    releaseLinks
+  );
+}
+
+function buildRelease(topics, release, releases) {
+  const outputDir = path.join(siteDir, release.releaseName);
+  ensureDir(outputDir);
+
+  const included = [];
+  for (const topicId of release.manifest.topics || []) {
+    const topic = topics.get(topicId);
+    if (!topic) continue;
+    if (!releaseMatchesTopic(release.releaseName, topic)) continue;
+    included.push(topic);
   }
-  const releaseLinks = releases.map((release) => `<li><a href="./${release}/index.html">${release}</a></li>`).join("");
-  fs.writeFileSync(path.join(siteDir, "index.html"), `<!doctype html><html><body><ul>${releaseLinks}</ul></body></html>`);
+
+  const sections = (release.toc.sections || [])
+    .map((section) => {
+      const sectionTopics = (section.topics || [])
+        .map((topicId) => included.find((topic) => topic.topicId === topicId))
+        .filter(Boolean)
+        .map((topic) => ({ slug: topic.slug, title: topic.title, topicId: topic.topicId }));
+      if (sectionTopics.length === 0) return null;
+      return { title: section.title, topics: sectionTopics };
+    })
+    .filter(Boolean);
+
+  const releaseLinks = buildReleaseNav(releases, release.releaseName);
+  const orderedTopics = sections.flatMap((section) => section.topics);
+
+  for (const [index, orderedTopic] of orderedTopics.entries()) {
+    const topic = included.find((item) => item.topicId === orderedTopic.topicId);
+    const previous = index > 0 ? orderedTopics[index - 1] : null;
+    const next = index < orderedTopics.length - 1 ? orderedTopics[index + 1] : null;
+    fs.writeFileSync(
+      path.join(outputDir, `${topic.slug}.html`),
+      renderTopicPage(topic, release, releaseLinks, { previous, next })
+    );
+  }
+
+  fs.writeFileSync(path.join(outputDir, "index.html"), renderReleasePage(release, sections, releaseLinks));
+}
+
+function main() {
+  removeDir(siteDir);
+  ensureDir(siteDir);
+
+  const topics = loadTopics();
+  const releases = fs.readdirSync(releasesDir)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map(loadReleaseConfig);
+
+  for (const release of releases) {
+    buildRelease(topics, release, releases);
+  }
+
+  fs.writeFileSync(path.join(siteDir, "index.html"), renderHomePage(releases));
+  fs.writeFileSync(path.join(siteDir, ".nojekyll"), "");
 }
 
 main();
