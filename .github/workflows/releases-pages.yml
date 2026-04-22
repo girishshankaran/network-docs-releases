@@ -1,0 +1,55 @@
+name: Build And Deploy Releases
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout releases repo
+        uses: actions/checkout@v5
+        with:
+          path: network-docs-releases
+
+      - name: Checkout content repo
+        uses: actions/checkout@v5
+        with:
+          repository: girishshankaran/network-docs-content
+          ref: main
+          path: network-docs-content
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Build release site
+        run: node network-docs-releases/scripts/build-site.js network-docs-content network-docs-releases
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: network-docs-releases/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

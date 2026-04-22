@@ -1,0 +1,7 @@
+sections:
+  - id: access
+    title: Access
+    topics: ["NET-SSH-TASK-001"]
+  - id: proxy
+    title: Proxy
+    topics: ["NET-PROXY-TASK-001"]
