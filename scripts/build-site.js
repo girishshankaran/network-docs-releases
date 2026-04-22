@@ -226,7 +226,7 @@ function siteChrome(title, body, releaseLinks = []) {
       margin: 0 auto;
       padding: 40px 20px 72px;
     }
-    .hero, .panel, .topic-shell {
+    .hero, .panel, .topic-shell, .toc-shell {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 24px;
@@ -291,13 +291,13 @@ function siteChrome(title, body, releaseLinks = []) {
     .grid {
       display: grid;
       gap: 18px;
-      grid-template-columns: 1.75fr 1fr;
+      grid-template-columns: minmax(0, 1.9fr) minmax(260px, 0.9fr);
     }
     .release-list {
       display: grid;
       gap: 16px;
     }
-    .release-card, .section-card, .panel, .topic-shell {
+    .release-card, .section-card, .panel, .topic-shell, .toc-shell {
       padding: 24px;
     }
     .release-card, .section-card {
@@ -324,6 +324,73 @@ function siteChrome(title, body, releaseLinks = []) {
       padding: 28px 30px;
       max-width: 860px;
       margin: 0 auto;
+    }
+    .toc-shell {
+      background: rgba(255, 251, 243, 0.92);
+    }
+    .toc-shell h2 {
+      margin-bottom: 18px;
+    }
+    .toc-section + .toc-section {
+      margin-top: 26px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+    }
+    .toc-section-title {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      margin-bottom: 10px;
+    }
+    .toc-list {
+      margin: 0;
+      padding-left: 24px;
+    }
+    .toc-list li {
+      margin-bottom: 16px;
+    }
+    .toc-entry-title {
+      display: inline-block;
+      margin-bottom: 4px;
+      font-size: 1.08rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .toc-entry-meta {
+      display: block;
+      color: var(--muted);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+    .toc-entry-summary {
+      margin: 6px 0 0;
+      color: var(--ink);
+      font-size: 0.98rem;
+      line-height: 1.6;
+    }
+    .meta-grid {
+      display: grid;
+      gap: 10px 18px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin: 20px 0 8px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 249, 239, 0.92);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-size: 0.94rem;
+    }
+    .meta-item strong {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
     .topic-shell h1 { font-size: clamp(2rem, 3vw, 3.2rem); }
     .topic-shell h2 { margin-top: 28px; }
@@ -356,8 +423,9 @@ function siteChrome(title, body, releaseLinks = []) {
     }
     @media (max-width: 800px) {
       .grid { grid-template-columns: 1fr; }
-      .hero, .release-card, .section-card, .panel, .topic-shell { padding: 22px; }
+      .hero, .release-card, .section-card, .panel, .topic-shell, .toc-shell { padding: 22px; }
       .topic-nav { flex-direction: column; }
+      .meta-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -454,6 +522,17 @@ function loadTopics() {
       slug: fileName.replace(/\.md$/, ""),
       topicId: frontmatter.topic_id,
       title: frontmatter.title,
+      shortTitle: frontmatter.short_title || frontmatter.title,
+      summary: frontmatter.summary || "",
+      product: frontmatter.product || "",
+      platform: frontmatter.platform || "",
+      contentType: frontmatter.content_type || "",
+      audience: frontmatter.audience || [],
+      estimatedTime: frontmatter.estimated_time || "",
+      permissions: frontmatter.permissions || [],
+      tags: frontmatter.tags || [],
+      owner: frontmatter.owner || "",
+      lastReviewed: frontmatter.last_reviewed || "",
       lifecycle: frontmatter.lifecycle || {},
       body,
     });
@@ -552,14 +631,19 @@ function renderHomePage(releases) {
 }
 
 function renderReleasePage(release, sections, releaseLinks) {
-  const sectionCards = sections.map((section) => `
-    <article class="section-card">
-      <div class="eyebrow">Section</div>
-      <h2>${escapeHtml(section.title)}</h2>
-      <ul>
-        ${section.topics.map((topic) => `<li><a href="./${topic.slug}.html">${escapeHtml(topic.title)}</a></li>`).join("")}
-      </ul>
-    </article>
+  const tocMarkup = sections.map((section) => `
+    <section class="toc-section">
+      <div class="toc-section-title">${escapeHtml(section.title)}</div>
+      <ol class="toc-list">
+        ${section.topics.map((topic) => `
+          <li>
+            <a class="toc-entry-title" href="./${topic.slug}.html">${escapeHtml(topic.title)}</a>
+            <span class="toc-entry-meta">${escapeHtml(topic.contentType || "task")} · ${escapeHtml(topic.estimatedTime || "Estimated time not set")}</span>
+            ${topic.summary ? `<p class="toc-entry-summary">${escapeHtml(topic.summary)}</p>` : ""}
+          </li>
+        `).join("")}
+      </ol>
+    </section>
   `).join("");
 
   return siteChrome(
@@ -577,9 +661,11 @@ function renderReleasePage(release, sections, releaseLinks) {
         </div>
       </section>
       <section class="grid">
-        <div class="release-list">
-          ${sectionCards}
-        </div>
+        <section class="toc-shell">
+          <div class="eyebrow">Table of contents</div>
+          <h2>${escapeHtml(release.manifest.title)}</h2>
+          ${tocMarkup}
+        </section>
         <aside class="panel">
           <div class="eyebrow">Release facts</div>
           <h2>Build summary</h2>
@@ -595,6 +681,18 @@ function renderReleasePage(release, sections, releaseLinks) {
 }
 
 function renderTopicPage(topic, release, releaseLinks, nav) {
+  const metaItems = [
+    ["Product", topic.product],
+    ["Platform", topic.platform],
+    ["Audience", Array.isArray(topic.audience) ? topic.audience.join(", ") : topic.audience],
+    ["Estimated time", topic.estimatedTime],
+    ["Permissions", Array.isArray(topic.permissions) ? topic.permissions.join(", ") : topic.permissions],
+    ["Last reviewed", topic.lastReviewed],
+  ]
+    .filter(([, value]) => value)
+    .map(([label, value]) => `<div class="meta-item"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</div>`)
+    .join("");
+
   const topicNav = (nav.previous || nav.next)
     ? `<nav class="topic-nav">
         <div>${nav.previous ? `<a href="./${nav.previous.slug}.html"><span>Previous</span><strong>${escapeHtml(nav.previous.title)}</strong></a>` : ""}</div>
@@ -608,6 +706,8 @@ function renderTopicPage(topic, release, releaseLinks, nav) {
     <main>
       <div class="topic-shell">
         <div class="breadcrumbs"><a href="../index.html">${escapeHtml(release.metadata.display_name)}</a> · Topic ID <code>${escapeHtml(topic.topicId)}</code></div>
+        ${topic.summary ? `<p>${escapeHtml(topic.summary)}</p>` : ""}
+        ${metaItems ? `<div class="meta-grid">${metaItems}</div>` : ""}
         ${markdownToHtml(renderVersionBlocks(topic.body, release.releaseName))}
         ${topicNav}
       </div>
@@ -633,7 +733,14 @@ function buildRelease(topics, release, releases) {
       const sectionTopics = (section.topics || [])
         .map((topicId) => included.find((topic) => topic.topicId === topicId))
         .filter(Boolean)
-        .map((topic) => ({ slug: topic.slug, title: topic.title, topicId: topic.topicId }));
+        .map((topic) => ({
+          slug: topic.slug,
+          title: topic.title,
+          topicId: topic.topicId,
+          summary: topic.summary,
+          contentType: topic.contentType,
+          estimatedTime: topic.estimatedTime,
+        }));
       if (sectionTopics.length === 0) return null;
       return { title: section.title, topics: sectionTopics };
     })
