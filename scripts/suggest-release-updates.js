@@ -5,6 +5,7 @@ const contentRoot = path.resolve(process.argv[2] || "../network-docs-content");
 const releasesRoot = path.resolve(process.argv[3] || ".");
 const topicsDir = path.join(contentRoot, "topics");
 const releasesDir = path.join(releasesRoot, "releases");
+let hasSuggestions = false;
 
 function parseScalar(raw) {
   const trimmed = raw.trim();
@@ -179,6 +180,7 @@ function main() {
     }
 
     if (missingFromRelease.length > 0) {
+      hasSuggestions = true;
       console.log("Suggested additions to release manifest:");
       for (const topic of missingFromRelease) {
         const section = suggestSection(topic);
@@ -189,12 +191,21 @@ function main() {
     }
 
     if (missingFromToc.length > 0) {
+      hasSuggestions = true;
       console.log("Manifest entries missing from sections:");
       for (const topic of missingFromToc) {
         const section = suggestSection(topic);
         console.log(`- ${topic.topicId} (${topic.title})`);
         console.log(`  suggested section: ${section.title} [${section.id}]`);
       }
+    }
+  }
+
+  if (process.env.GITHUB_ACTIONS === "true") {
+    if (hasSuggestions) {
+      console.log("::warning title=Release packaging suggestions detected::One or more topics are applicable to a release but missing from that release manifest or sections. Review the suggestion output above.");
+    } else {
+      console.log("No release packaging suggestions detected.");
     }
   }
 }
