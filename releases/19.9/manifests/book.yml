@@ -2,3 +2,4 @@ book_id: router-admin-guide
 title: Router Administration Guide
 topics:
   - NET-SSH-TASK-001
+  - NET-DELETE-CONFIG-TASK-001
