@@ -5,7 +5,7 @@ topics:
   - NET-PROXY-TASK-001
   - NET-UPGRADE-TASK-001
   - NET-IOSXR-DEPLOY-TASK-001
-  - NET-PUBHUB-API-DOCS-TASK-001
+  - NET-CREATE-PUBLISH-API-TASK-001
 sections:
   - id: access
     title: Access
@@ -21,4 +21,4 @@ sections:
     topics: ["NET-IOSXR-DEPLOY-TASK-001"]
   - id: publish
     title: Publish
-    topics: ["NET-PUBHUB-API-DOCS-TASK-001"]
+    topics: ["NET-CREATE-PUBLISH-API-TASK-001"]
