@@ -4,6 +4,7 @@ topics:
   - NET-SSH-TASK-001
   - NET-PROXY-TASK-001
   - NET-DHCP-TASK-001
+  - NET-PUBHUB-API-DOCS-TASK-001
 sections:
   - id: access
     title: Access
@@ -14,3 +15,6 @@ sections:
   - id: dhcp
     title: DHCP
     topics: ["NET-DHCP-TASK-001"]
+  - id: publish
+    title: Publish
+    topics: ["NET-PUBHUB-API-DOCS-TASK-001"]
