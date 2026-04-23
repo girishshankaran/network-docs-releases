@@ -27,6 +27,12 @@ That file defines both:
 - which topics belong in the release
 - how those topics are organized into sections
 
+Recommended collaboration model:
+
+- submit changes through pull requests to `main`
+- require the release build workflow to pass before merge
+- reserve direct pushes to `main` for administrators only
+
 The starter workflow is in:
 
 - `.github/workflows/releases-pages.yml`
