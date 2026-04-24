@@ -36,3 +36,7 @@ Recommended collaboration model:
 The starter workflow is in:
 
 - `.github/workflows/releases-pages.yml`
+
+Architecture:
+
+- [ARCHITECTURE.md](ARCHITECTURE.md)
