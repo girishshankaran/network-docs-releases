@@ -2,6 +2,7 @@ book_id: router-admin-guide
 title: Router Administration Guide
 topics:
   - NET-SSH-TASK-001
+  - NET-GENERATE-SSH-KEYS-TASK-001
   - NET-PROXY-TASK-001
   - NET-UPGRADE-TASK-001
   - NET-IOSXR-DEPLOY-TASK-001
@@ -9,7 +10,7 @@ topics:
 sections:
   - id: access
     title: Access
-    topics: ["NET-SSH-TASK-001"]
+    topics: ["NET-SSH-TASK-001", "NET-GENERATE-SSH-KEYS-TASK-001"]
   - id: proxy
     title: Proxy
     topics: ["NET-PROXY-TASK-001"]
@@ -19,4 +20,3 @@ sections:
   - id: deployment
     title: Deployment
     topics: ["NET-IOSXR-DEPLOY-TASK-001"]
-  
