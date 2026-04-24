@@ -6,6 +6,7 @@ topics:
   - NET-DHCP-TASK-001
   - NET-CONFIGURE-ALERTS-ROUTERS-TASK-001
   - NET-CREATE-PUBLISH-API-TASK-001
+  - NET-AUTHENTICATE-USERS-TASK-001
 sections:
   - id: access
     title: Access
@@ -22,3 +23,6 @@ sections:
   - id: publish
     title: Publish
     topics: ["NET-CREATE-PUBLISH-API-TASK-001"]
+  - id: authenticate
+    title: Authenticate
+    topics: ["NET-AUTHENTICATE-USERS-TASK-001"]
