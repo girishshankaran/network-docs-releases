@@ -7,6 +7,7 @@ topics:
   - NET-IOSXR-DEPLOY-TASK-001
   - NET-CREATE-PUBLISH-API-TASK-001
   - NET-AUTHENTICATE-USERS-TASK-001
+  - NET-SWITCH-AUTHENTICATION-TASK-001
 sections:
   - id: access
     title: Access
@@ -26,3 +27,6 @@ sections:
   - id: authenticate
     title: Authenticate
     topics: ["NET-AUTHENTICATE-USERS-TASK-001"]
+  - id: authenticate switch
+    title: Authenticate switch
+    topics: ["NET-SWITCH-AUTHENTICATION-TASK-001"]
