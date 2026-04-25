@@ -5,6 +5,7 @@ topics:
   - NET-GENERATE-SSH-KEYS-TASK-001
   - NET-PROXY-TASK-001
   - NET-UPGRADE-TASK-001
+  - NET-MIGRATING-NEW-VERSION-ROUTERS-TASK-001
   - NET-IOSXR-DEPLOY-TASK-001
   - NET-CREATE-PUBLISH-API-TASK-001
 sections:
@@ -17,6 +18,9 @@ sections:
   - id: upgrade
     title: Upgrade
     topics: ["NET-UPGRADE-TASK-001"]
+  - id: migration
+    title: Migration
+    topics: ["NET-MIGRATING-NEW-VERSION-ROUTERS-TASK-001"]
   - id: deployment
     title: Deployment
     topics: ["NET-IOSXR-DEPLOY-TASK-001"]
