@@ -38,6 +38,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Validate release assets
+        run: node network-docs-releases/scripts/validate-release-assets.js network-docs-content network-docs-releases
+
       - name: Build release site
         run: node network-docs-releases/scripts/build-site.js network-docs-content network-docs-releases
 

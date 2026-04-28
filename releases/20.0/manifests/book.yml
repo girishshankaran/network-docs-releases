@@ -28,6 +28,6 @@ sections:
   - id: authenticate
     title: Authenticate
     topics: ["NET-AUTHENTICATE-USERS-TASK-001"]
-  - id: authenticate switch
+  - id: authenticate-switch
     title: Authenticate switch
     topics: ["NET-SWITCH-AUTHENTICATION-TASK-001"]
